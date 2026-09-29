@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNN++: Robust Graph Neural Star Identification on Earth</title>
+<meta name="description" content="A learning-based star identification framework for celestial navigation in GNSS-denied nighttime environments, validated on real terrestrial night-sky images.">
+
+<!-- ====================================================================
+     DOUBLE-BLIND WARNING
+     This page is written for an anonymous submission. Author names,
+     affiliations, institutional links, the repository owner's identity and
+     anything else identifying MUST stay out until the paper is accepted.
+     A public page linked from an anonymous submission can de-anonymise it.
+     Search for "ANON" in this file for every place that needs updating
+     after acceptance.
+     ==================================================================== -->
+
+<meta property="og:title" content="SIGNN++: Robust Graph Neural Star Identification on Earth">
+<meta property="og:description" content="Star identification on real night-sky images, under cloud, motion blur and light pollution.">
+<meta property="og:type" content="website">
+<!-- TODO: add an absolute URL to a 1200x630 preview image once figures exist
+<meta property="og:image" content="https://USER.github.io/REPO/static/images/og.png"> -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/style.css">
+<style>
+  /* Figure + video rules. Kept here so the page works even if style.css
+     still only styles the old .slot placeholders. */
+  .figure { margin: 2rem 0; }
+  .figure img { display: block; width: 100%; height: auto; border-radius: 6px; background: #fff; }
+  .figure a { display: block; }
+  .figure figcaption { margin-top: .6rem; font-size: .95rem; line-height: 1.5; opacity: .85; }
+  .figure figcaption b { font-weight: 600; }
+  .figure.narrow { max-width: 760px; margin-left: auto; margin-right: auto; }
+  .figure.wide { max-width: none; }
+  .fig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+  .fig-row .figure { margin: 1rem 0; }
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .gallery .figure { margin: 0; }
+  .video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; overflow: hidden; }
+  .video-wrap video, .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  @media (max-width: 760px) { .fig-row, .gallery { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#abstract">Skip to abstract</a>
+
+<header class="hero">
+  <!-- The hero is the method's own output: stars as nodes, edges drawn only
+       between stars 1-4 degrees apart, the brightest ringed as identified.
+       Geometry follows that rule rather than being decorative. -->
+  <svg class="hero-sky" viewBox="0 0 1600 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <g class="edges">
+      <line x1="250" y1="370" x2="279" y2="627" pathLength="100"/>
+      <line x1="250" y1="370" x2="164" y2="148" pathLength="100"/>
+      <line x1="250" y1="370" x2="408" y2="551" pathLength="100"/>
+      <line x1="250" y1="370" x2="517" y2="260" pathLength="100"/>
+      <line x1="950" y1="87" x2="1041" y2="235" pathLength="100"/>
+      <line x1="950" y1="87" x2="880" y2="360" pathLength="100"/>
+      <line x1="950" y1="87" x2="751" y2="236" pathLength="100"/>
+      <line x1="1464" y1="443" x2="1269" y2="399" pathLength="100"/>
+      <line x1="1464" y1="443" x2="1512" y2="193" pathLength="100"/>
+      <line x1="606" y1="377" x2="880" y2="360" pathLength="100"/>
+      <line x1="606" y1="377" x2="408" y2="551" pathLength="100"/>
+      <line x1="606" y1="377" x2="751" y2="236" pathLength="100"/>
+      <line x1="606" y1="377" x2="562" y2="80" pathLength="100"/>
+      <line x1="606" y1="377" x2="740" y2="485" pathLength="100"/>
+      <line x1="1041" y1="235" x2="1269" y2="399" pathLength="100"/>
+      <line x1="1041" y1="235" x2="1344" y2="147" pathLength="100"/>
+      <line x1="1052" y1="377" x2="1269" y2="399" pathLength="100"/>
+      <line x1="1052" y1="377" x2="880" y2="360" pathLength="100"/>
+      <line x1="1052" y1="377" x2="740" y2="485" pathLength="100"/>
+      <line x1="1269" y1="399" x2="1512" y2="193" pathLength="100"/>
+      <line x1="1512" y1="193" x2="1344" y2="147" pathLength="100"/>
+      <line x1="880" y1="360" x2="751" y2="236" pathLength="100"/>
+      <line x1="408" y1="551" x2="517" y2="260" pathLength="100"/>
+      <line x1="751" y1="236" x2="562" y2="80" pathLength="100"/>
+      <line x1="751" y1="236" x2="517" y2="260" pathLength="100"/>
+      <line x1="740" y1="485" x2="517" y2="260" pathLength="100"/>
+    </g>
+    <g class="rings">
+      <circle cx="740" cy="485" r="14"/>
+      <circle cx="279" cy="627" r="14"/>
+      <circle cx="408" cy="551" r="14"/>
+      <circle cx="1269" cy="399" r="14"/>
+      <circle cx="250" cy="370" r="14"/>
+      <circle cx="562" cy="80" r="14"/>
+      <circle cx="606" cy="377" r="14"/>
+    </g>
+    <g class="stars">
+      <circle cx="250" cy="370" r="5.0"/><circle cx="950" cy="87" r="4.8"/>
+      <circle cx="279" cy="627" r="5.1"/><circle cx="164" cy="148" r="3.4"/>
+      <circle cx="1464" cy="443" r="4.2"/><circle cx="606" cy="377" r="4.9"/>
+      <circle cx="1041" cy="235" r="3.6"/><circle cx="1052" cy="377" r="4.8"/>
+      <circle cx="1269" cy="399" r="5.1"/><circle cx="1512" cy="193" r="3.9"/>
+      <circle cx="880" cy="360" r="3.3"/><circle cx="408" cy="551" r="5.1"/>
+      <circle cx="1344" cy="147" r="3.5"/><circle cx="751" cy="236" r="4.8"/>
+      <circle cx="562" cy="80" r="5.0"/><circle cx="740" cy="485" r="5.2"/>
+      <circle cx="517" cy="260" r="4.6"/>
+      <circle cx="120" cy="690" r="1.4"/><circle cx="1390" cy="640" r="1.6"/>
+      <circle cx="330" cy="120" r="1.3"/><circle cx="1180" cy="90" r="1.5"/>
+      <circle cx="860" cy="660" r="1.7"/><circle cx="1560" cy="560" r="1.2"/>
+      <circle cx="60" cy="480" r="1.5"/><circle cx="1000" cy="540" r="1.3"/>
+      <circle cx="430" cy="700" r="1.4"/><circle cx="1230" cy="560" r="1.2"/>
+    </g>
+  </svg>
+
+  <div class="hero-body">
+    <p class="venue">Anonymous submission to ICRA 2027</p>
+    <h1>SIGNN++<span class="hero-sub">Robust graph neural star identification on Earth</span></h1>
+    <p class="authors" id="ANON-authors">Authors withheld for review</p>
+
+    <nav class="links" aria-label="Paper resources">
+      <!-- ANON: fill href and drop .pending once each artefact is public. -->
+      <a class="btn pending" href="#" aria-disabled="true" tabindex="-1">Paper</a>
+      <a class="btn pending" href="#" aria-disabled="true" tabindex="-1">arXiv</a>
+      <a class="btn pending" href="#" aria-disabled="true" tabindex="-1">Code</a>
+      <a class="btn" href="#video">Video</a>
+      <a class="btn pending" href="#" aria-disabled="true" tabindex="-1">Dataset</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="band teaser-band">
+  <figure class="figure narrow">
+    <a href="static/images/fig1_teaser.jpg" target="_blank" rel="noopener"><img src="static/images/fig1_teaser.jpg" width="2000" height="2069" decoding="async" fetchpriority="high"
+      alt="A drone on Earth views a patch of the celestial sphere; matched stars form a graph. Below, three real night-sky images with identified stars labelled by HR catalog number."></a>
+    <figcaption>A camera on the ground sees a small patch of the celestial sphere.
+    Identifying which stars those are fixes the camera's attitude, and with it a
+    bearing that needs no satellite. The three images below show severe motion
+    blur, cloud occlusion and star streaks, where SIGNN++ still identifies the
+    stars and conventional SID methods fail. <b>(Fig. 1)</b></figcaption>
+  </figure>
+</section>
+
+<section class="band" id="abstract">
+  <h2>Abstract</h2>
+  <p>We present SIGNN++, a learning-based star identification (SID) framework for
+  celestial navigation in GNSS-denied nighttime environments. Although researchers
+  have developed learning-based SID methods to improve robustness to observation
+  noise, prior evaluations focus mainly on synthetic or non-terrestrial
+  environments, leaving their reliability under real terrestrial conditions
+  unclear. In particular, prior work has not validated SIGNN, a graph neural
+  network-based SID method with strong performance in virtual environments, on
+  real night-sky images, and SIGNN shows degraded performance under combined
+  noise. To address these limitations, SIGNN++ extends SIGNN with three
+  components: a more realistic noise model for training data, Fourier Transform
+  (FT) of angular-distance edge features, and RANSAC-based Perspective Star
+  Alignment for identification and attitude refinement. We evaluate SIGNN++
+  through noise ablations, Stellarium simulations, and real terrestrial datasets
+  containing random-view and sequential night-sky images. The results show that
+  SIGNN++ is more robust to terrestrial observation disturbances and achieves
+  higher star identification accuracy and solved rates than the original SIGNN
+  and publicly available SID baselines, while maintaining comparable attitude
+  accuracy and practical computation time for continuous operation.</p>
+</section>
+
+<section class="band" id="method">
+  <h2>How it works</h2>
+
+  <!-- A numbered strip is justified here: this really is a sequence, and the
+       numbers are how the paper refers to the stages. -->
+  <ol class="pipeline">
+    <li><span class="step">1</span><b>Star centroiding</b>
+      Bright pixels are grouped and reduced to sub-pixel centres of gravity.</li>
+    <li><span class="step">2</span><b>SIGNN+FT</b>
+      Stars become graph nodes; angular distances become edges, lifted into
+      Fourier features so the network can separate geometrically similar pairs.</li>
+    <li><span class="step">3</span><b>Perspective Star Alignment</b>
+      RANSAC over the network's confident predictions recovers a rotation, then
+      refines it jointly with the field of view.</li>
+    <li><span class="step">4</span><b>Star IDs and camera attitude</b>
+      Every detection is relabelled from the recovered pose.</li>
+  </ol>
+
+<figure class="figure">
+    <a href="static/images/fig2_architecture.png" target="_blank" rel="noopener"><img src="static/images/fig2_architecture.png" width="2000" height="1195" loading="lazy" decoding="async" alt="SIGNN++ pipeline: input image, star centroiding, SIGNN+FT graph network with GATv2 layers and sinusoidal edge encoding, then Perspective Star Alignment (star selection, SVD, projection, consensus, attitude optimization), output star IDs and camera attitude."></a>
+    <figcaption>SIGNN++ takes a night-sky image and returns star identities and the camera's
+    attitude. Centroiding uses the centre-of-gravity method, and every SID method
+    receives the same centroids for a fair comparison. <b>(Fig. 2)</b></figcaption>
+  </figure>
+
+  <h3>What SIGNN++ adds</h3>
+  <dl class="adds">
+    <dt>A terrestrial noise model</dt>
+    <dd>Training samples carry four noise types at once rather than one at a time,
+    with faint stars dropped more often and faint false stars generated more
+    often — the way light pollution and cloud actually degrade a ground-based
+    frame.</dd>
+
+    <dt>Fourier features on edge distances</dt>
+    <dd>A scalar angular distance is mapped through sinusoids at six frequencies,
+    which counters the spectral bias of the network and makes near-identical
+    edges separable. This is what recovers accuracy under positional noise.</dd>
+
+    <dt>Perspective Star Alignment</dt>
+    <dd>Pairs of high-confidence predictions each hypothesise a rotation by SVD;
+    the hypothesis with the largest catalog consensus is kept and refined by
+    iterative closest point and a Trust-Region-Reflective least-squares solve
+    over rotation and field of view together. Identification and attitude are
+    solved as one problem, so a network mistake can be corrected geometrically.</dd>
+  </dl>
+
+  <figure class="figure narrow">
+    <a href="static/images/fig3_training_noise.png" target="_blank" rel="noopener"><img src="static/images/fig3_training_noise.png" width="2000" height="1926" loading="lazy" decoding="async" alt="Four scatter plots in RA/Dec: drop noise removes real stars, false noise adds stars, magnitude noise perturbs brightness, position noise shifts stars slightly."></a>
+    <figcaption>The four training noise types. Drop and false-star noise remove and add stars
+    with fixed probabilities; magnitude and positional noise apply Gaussian
+    perturbations. SIGNN++ applies all four to every training sample. <b>(Fig. 3)</b></figcaption>
+  </figure>
+</section>
+
+<section class="band" id="setup">
+  <h2>Evaluation setup</h2>
+  <p>Three kinds of evaluation: a noise ablation on synthetic catalog data, a
+  terrestrial simulation in Stellarium (light pollution and atmospheric
+  refraction), and real night-sky images captured with an iPhone 15 Pro Max,
+  with ground truth from Astrometry.net or a star tracker.</p>
+
+  <div class="fig-row">
+    <figure class="figure">
+    <a href="static/images/fig4_bortle.jpg" target="_blank" rel="noopener"><img src="static/images/fig4_bortle.jpg" width="2000" height="1447" loading="lazy" decoding="async" alt="Orion without atmosphere on the left; on the right, detected centroids at Bortle levels 6, 7, 8 and 9, with 40, 35, 18 and 16 stars detected."></a>
+    <figcaption>Light pollution rendered by Stellarium. The same Orion scene at Bortle levels
+      6 to 9: as the sky brightens, detected stars fall from 40 to 16. <b>(Fig. 4)</b></figcaption>
+  </figure>
+    <figure class="figure">
+    <a href="static/images/fig5_refraction.jpg" target="_blank" rel="noopener"><img src="static/images/fig5_refraction.jpg" width="2000" height="1087" loading="lazy" decoding="async" alt="Star positions without and with atmosphere; near the horizon each star is lifted upward by about 0.116 to 0.125 degrees."></a>
+    <figcaption>Atmospheric refraction rendered by Stellarium. Near the horizon each centroid
+      is displaced by about 0.12°. <b>(Fig. 5)</b></figcaption>
+  </figure>
+  </div>
+
+  <figure class="figure narrow">
+    <a href="static/images/fig6_setup.jpg" target="_blank" rel="noopener"><img src="static/images/fig6_setup.jpg" width="2000" height="1600" loading="lazy" decoding="async" alt="A Rocket Lab ST-RT star tracker and an iPhone 15 Pro Max mounted together on a 3-axis rotation stage outdoors at night, with an iPhone image and illustrated star-tracker centroids."></a>
+    <figcaption>Setup for the sequential real-sky dataset: a star tracker (Rocket Lab ST-RT)
+    and an iPhone 15 Pro Max on a 3-axis rotation stage. The iPhone image is a
+    real 500 ms exposure; the ST centroid panel is an illustration of the
+    expected star locations. <b>(Fig. 6)</b></figcaption>
+  </figure>
+</section>
+
+<section class="band" id="results">
+  <h2>Results</h2>
+
+  <h3>Noise ablation</h3>
+  <p class="lede">Each noise type on its own, 11 levels each, on the catalog
+  dataset.</p>
+  <figure class="figure narrow">
+    <a href="static/images/fig7_noise_ablation.png" target="_blank" rel="noopener"><img src="static/images/fig7_noise_ablation.png" width="2000" height="1474" loading="lazy" decoding="async" alt="Four line charts of pooled recall against noise level for drop, false-star, magnitude and position noise; SIGNN++ stays highest in all four."></a>
+    <figcaption>Pooled recall of SIGNN, SIGNN+FT, SIGNN++, Tetra and ROSIA. Maximum levels are
+    50% drop, 50% false stars, 0.1 magnitude and 0.01 rad (≈0.5°) position.
+    SIGNN++ is the most robust overall; the Fourier features alone (SIGNN+FT)
+    account for most of the gain under positional noise, where Tetra is weakest.
+    <b>(Fig. 7)</b></figcaption>
+  </figure>
+
+  <h3>Real night sky, random views</h3>
+  <p class="lede">67 images from three nights, many containing cloud and motion
+  blur. Ground truth from Astrometry.net.</p>
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">Performance on the real random-view dataset</caption>
+      <thead>
+        <tr><th scope="col">Method</th><th scope="col">Solved rate</th>
+        <th scope="col">F1</th><th scope="col">Time, solved</th>
+        <th scope="col">Time, failed</th><th scope="col">Attitude error</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">SIGNN</th><td>59.7%</td><td>32.63%</td>
+          <td class="best">0.012 s</td><td class="ok">0.012 s</td><td>—</td></tr>
+        <tr class="ours"><th scope="row">SIGNN++</th><td class="best">98.5%</td>
+          <td class="best">98.32%</td><td class="ok">0.366 s</td>
+          <td class="best">0.001 s</td><td class="ok">0.203°</td></tr>
+        <tr><th scope="row">ROSIA</th><td>70.1%</td><td>69.15%</td>
+          <td>0.532 s</td><td>0.696 s</td><td>0.328°</td></tr>
+        <tr><th scope="row">Tetra</th><td class="ok">79.1%</td><td class="ok">91.83%</td>
+          <td>0.593 s</td><td>6.053 s</td><td class="best">0.183°</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Attitude error is averaged over each method's own solved frames.
+  On the 53 frames both methods solved, SIGNN++ and Tetra are statistically
+  indistinguishable (0.194° against 0.183°, paired Wilcoxon <i>p</i> = 0.22),
+  while SIGNN++ additionally returns an attitude on 13 frames where Tetra
+  returns none.</p>
+
+  <figure class="figure wide">
+    <a href="static/images/fig8_random_view.jpg" target="_blank" rel="noopener"><img src="static/images/fig8_random_view.jpg" width="3200" height="638" loading="lazy" decoding="async" alt="A random-view real image with motion blur; SIGNN, SIGNN++, Tetra and ROSIA results side by side, with correct matches in green and mismatches in red. SIGNN++ is mostly green."></a>
+    <figcaption>A random-view real image with motion blur from camera shake. Green marks a
+    correct match, red a mismatch. Because SIGNN++ only connects stars 1–4° apart,
+    duplicated centroids from blur do not break it. <b>(Fig. 8)</b></figcaption>
+  </figure>
+
+  <h3>Simulated light pollution</h3>
+  <p class="lede">5,000 Stellarium frames across four Bortle levels, from bright
+  suburban sky to inner city (see Fig. 4).</p>
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">Performance across Bortle levels</caption>
+      <thead>
+        <tr><th scope="col">Method</th><th scope="col">Metric</th>
+        <th scope="col">Bortle 6</th><th scope="col">Bortle 7</th>
+        <th scope="col">Bortle 8</th><th scope="col">Bortle 9</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row" rowspan="2">SIGNN</th><td>Solved rate</td>
+          <td>84.16%</td><td>85.28%</td><td>57.78%</td><td>19.72%</td></tr>
+        <tr><td>F1</td><td>50.37%</td><td>51.90%</td><td>38.85%</td><td>32.79%</td></tr>
+
+        <tr class="ours"><th scope="row" rowspan="3">SIGNN++</th><td>Solved rate</td>
+          <td class="best">96.88%</td><td class="best">95.68%</td>
+          <td class="best">86.36%</td><td class="best">64.59%</td></tr>
+        <tr class="ours"><td>F1</td><td class="best">98.94%</td><td class="best">98.98%</td>
+          <td class="best">99.06%</td><td class="best">98.69%</td></tr>
+        <tr class="ours"><td>Attitude error</td><td>0.04°</td><td>0.03°</td>
+          <td>0.03°</td><td class="best">0.03°</td></tr>
+
+        <tr><th scope="row" rowspan="3">ROSIA</th><td>Solved rate</td>
+          <td>82.00%</td><td>82.24%</td><td>53.45%</td><td>16.35%</td></tr>
+        <tr><td>F1</td><td>95.02%</td><td>94.64%</td><td>91.31%</td><td>85.40%</td></tr>
+        <tr><td>Attitude error</td><td>0.29°</td><td>0.30°</td><td>0.38°</td><td>0.67°</td></tr>
+
+        <tr><th scope="row" rowspan="3">Tetra</th><td>Solved rate</td>
+          <td>79.52%</td><td>79.76%</td><td class="ok">60.35%</td><td class="ok">21.45%</td></tr>
+        <tr><td>F1</td><td class="ok">98.02%</td><td class="ok">98.03%</td>
+          <td class="ok">97.63%</td><td class="ok">97.01%</td></tr>
+        <tr><td>Attitude error</td><td class="best">0.03°</td><td class="best">0.03°</td>
+          <td class="best">0.03°</td><td>0.03°</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">At Bortle 9 the baselines fall below a 22% solved rate while
+  SIGNN++ holds 64.59%. Its F1 barely moves across the four levels, so the frames
+  it does solve are solved just as cleanly in the worst sky as the best.</p>
+
+  <h3>Looking at the horizon</h3>
+  <p class="lede">Elevation 10–30°, where atmospheric refraction displaces
+  centroids (see Fig. 5), against 50–90° overhead.</p>
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">Performance by horizontality</caption>
+      <thead>
+        <tr><th scope="col">Method</th><th scope="col">Metric</th>
+        <th scope="col">Sky</th><th scope="col">Horizon</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row" rowspan="2">SIGNN</th><td>Solved rate</td>
+          <td>76.00%</td><td>47.87%</td></tr>
+        <tr><td>F1</td><td>51.14 ± 18.44%</td><td>39.92 ± 15.59%</td></tr>
+        <tr class="ours"><th scope="row" rowspan="3">SIGNN++</th><td>Solved rate</td>
+          <td class="best">94.87%</td><td class="best">77.06%</td></tr>
+        <tr class="ours"><td>F1</td><td class="best">99.07 ± 2.07%</td>
+          <td class="best">98.77 ± 2.82%</td></tr>
+        <tr class="ours"><td>Attitude error</td><td>0.026 ± 0.032°</td>
+          <td>0.035 ± 0.034°</td></tr>
+        <tr><th scope="row" rowspan="3">ROSIA</th><td>Solved rate</td>
+          <td>75.12%</td><td>42.28%</td></tr>
+        <tr><td>F1</td><td>95.09 ± 9.84%</td><td>90.32 ± 14.51%</td></tr>
+        <tr><td>Attitude error</td><td>0.292 ± 0.530°</td><td>0.427 ± 0.613°</td></tr>
+        <tr><th scope="row" rowspan="3">Tetra</th><td>Solved rate</td>
+          <td class="ok">77.40%</td><td class="ok">43.45%</td></tr>
+        <tr><td>F1</td><td class="ok">97.93 ± 2.24%</td><td class="ok">97.68 ± 2.59%</td></tr>
+        <tr><td>Attitude error</td><td class="best">0.025 ± 0.014°</td>
+          <td class="best">0.031 ± 0.033°</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Near the horizon the baselines solve fewer than half the frames.
+  SIGNN++ keeps 77%, which the noise ablation predicts: refraction displaces
+  centroids by around 0.002 rad, and that is inside the positional noise SIGNN++
+  was trained to absorb.</p>
+
+  <h3>Continuous sequences</h3>
+  <p class="lede">A camera and a star tracker on a rotation stage, 15 sequences at
+  0.5 fps under varying elevation, rotation axis and angular velocity (setup in Fig. 6).</p>
+  <ul class="findings">
+    <li>Highest solved rate in all 15 sequences; lowest attitude error in 11;
+    fastest in 14.</li>
+    <li>Sequences 5, 7 and 11 are solved only by SIGNN++ — all three carry partial
+    cloud and star streaks.</li>
+    <li>When identification fails, Tetra can spend more than 5 s on a frame.
+    SIGNN++ returns in under 0.02 s, which is what makes a fixed frame budget
+    possible.</li>
+  </ul>
+<figure class="figure">
+    <a href="static/images/fig9_sequence.jpg" target="_blank" rel="noopener"><img src="static/images/fig9_sequence.jpg" width="2000" height="1018" loading="lazy" decoding="async" alt="Frames 3 to 5 of a sequence: top row input centroids as red crosses, bottom row SIGNN++ identifications as labelled green circles; a zoomed crop shows one star streak detected as two overlapping centroids."></a>
+    <figcaption>SIGNN++ on the fifth sequence (top: input centroids, bottom: identified stars).
+    In the crop, a star streak is detected as two separate centroids, which makes
+    the other SID methods fail; SIGNN++ still identifies the stars. <b>(Fig. 9)</b></figcaption>
+  </figure>
+</section>
+
+<section class="band" id="qualitative">
+  <h2>Identification under real conditions</h2>
+  <p class="lede">SIGNN++ output on real terrestrial images (the three panels of Fig. 1).</p>
+  <div class="gallery">
+    <figure class="figure">
+      <a href="static/images/gallery_blur.jpg" target="_blank" rel="noopener"><img src="static/images/gallery_blur.jpg" loading="lazy" decoding="async" alt="Real image with motion blur; duplicated centroids around each star, all identified."></a>
+      <figcaption>Camera shake duplicates centroids. Conventional methods read the
+      duplicates as false stars.</figcaption>
+    </figure>
+    <figure class="figure">
+      <a href="static/images/gallery_cloud.jpg" target="_blank" rel="noopener"><img src="static/images/gallery_cloud.jpg" loading="lazy" decoding="async" alt="Real image with thin cloud and many false detections; real stars identified."></a>
+      <figcaption>Thin cloud generates false detections far outnumbering the real
+      stars.</figcaption>
+    </figure>
+    <figure class="figure">
+      <a href="static/images/gallery_streak.jpg" target="_blank" rel="noopener"><img src="static/images/gallery_streak.jpg" loading="lazy" decoding="async" alt="Real image with star streaks; the streaked stars are identified."></a>
+      <figcaption>Rotation during exposure smears each star into a streak.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band" id="video">
+  <h2>Video</h2>
+  <!-- Option A (recommended while anonymous): put the MP4 in this repository at
+       static/videos/signnpp.mp4. Keep it under ~50 MB (GitHub rejects files
+       over 100 MB). H.264 + AAC plays in every browser.
+       Option B: an unlisted YouTube video from an account with no personal
+       name. Replace the <video> block with:
+       <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" title="SIGNN++ video"
+         allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe> -->
+  <div class="video-wrap">
+    <video controls playsinline preload="metadata">
+      <source src="static/videos/signnpp.mp4" type="video/mp4">
+      Your browser cannot play this video. <a href="static/videos/signnpp.mp4">Download it</a>.
+    </video>
+  </div>
+</section>
+
+<section class="band" id="bibtex">
+  <h2>Citation</h2>
+  <!-- ANON: replace with the real entry once the paper has a venue. -->
+  <pre class="bib"><code>@inproceedings{signnpp,
+  title     = {SIGNN++: Robust Graph Neural Star Identification on Earth},
+  author    = {Anonymous},
+  booktitle = {Under review},
+  year      = {2027}
+}</code></pre>
+  <button class="copy" type="button" data-copy="bibtex">Copy BibTeX</button>
+</section>
+
+</main>
+
+<footer class="foot">
+  <p>Page source is in this repository. <span id="ANON-ack">Acknowledgements and
+  contact withheld for review.</span></p>
+</footer>
+
+<script src="static/js/main.js"></script>
+</body>
+</html>
